@@ -1,5 +1,5 @@
 2023 Advanced Computer Networks Homework 5.pdf
-main.o
-main
-pcap.o
+*.o
+ipscanner
 .vscode
+ping.c

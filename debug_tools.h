@@ -6,6 +6,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void print_buffer(uint8_t *);
+void print_buffer(uint8_t *, int);
 
 # endif

@@ -1,6 +1,6 @@
 CC = gcc
 
-ipscanner: main.o pcap.o fill_packet.o debug_tools.o
+ipscanner: main.o pcap.o fill_packet.o debug_tools.o fill_packet.h pcap.h
 	$(CC) -o ipscanner main.o pcap.o fill_packet.o debug_tools.o -lpcap
 
 main.o: main.c

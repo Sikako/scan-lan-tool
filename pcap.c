@@ -49,8 +49,8 @@ void my_pcap_init( const char* dst_ip, char* dev ,int timeout)
 		perror("inet_ntoa");
 		exit(1);
 	}
-	printf("%d\n", netp);
-	puts(net);
+	// printf("%d\n", netp);
+	// puts(net);
 	
 	addr.s_addr = maskp;
 	mask = inet_ntoa(addr);
@@ -60,8 +60,8 @@ void my_pcap_init( const char* dst_ip, char* dev ,int timeout)
 	}
 	
 	
-	printf("%d\n", maskp);
-	puts(mask);
+	// printf("%d\n", maskp);
+	// puts(mask);
 
 	//3. Opens the device for live capture.
 	p = pcap_open_live(dev, 8000, 1, timeout, errbuf);
