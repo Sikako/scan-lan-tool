@@ -27,14 +27,14 @@ static const u_char *content;
  * This function is almost completed.
  * But you still need to edit the filter string.
  */
-void my_pcap_init( const char* dst_ip, char* dev ,int timeout){	
+void my_pcap_init(char* dev ,int timeout){	
 	int ret;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	
 	bpf_u_int32 netp;
 	bpf_u_int32 maskp;
 	
-	struct in_addr addr;
+	static struct in_addr a_net, a_mask;
 	
 	struct bpf_program fcode;
 	
@@ -47,30 +47,60 @@ void my_pcap_init( const char* dst_ip, char* dev ,int timeout){
 	}
 	
 	//2. Converts the network and mask addresses from numeric to string format.
-	addr.s_addr = netp;
-	net = inet_ntoa(addr);	
+	a_net.s_addr = netp;
+	net = strdup(inet_ntoa(a_net));
 	if(net == NULL){
 		perror("inet_ntoa");
 		exit(1);
 	}
-	// printf("%d\n", netp);
-	// puts(net);
-	
-	addr.s_addr = maskp;
-	mask = inet_ntoa(addr);
+
+	a_mask.s_addr = maskp;
+	mask = strdup(inet_ntoa(a_mask));
 	if(mask == NULL){
 		perror("inet_ntoa");
 		exit(1);
 	}
-	
-	
+
+	// net = inet_ntoa(a_net);	
+	// puts(net);
 	// printf("%d\n", maskp);
 	// puts(mask);
 
 	//3. Opens the device for live capture.
-	p = pcap_open_live(dev, 8000, 1, timeout, errbuf);
-	if(!p){
-		fprintf(stderr,"%s\n",errbuf);
+	p = pcap_create( dev, errbuf );
+	if( p == NULL ){
+		fprintf( stderr, "Unable to create pcap for interface %s (%s).\n", dev, errbuf );
+		exit(1);
+	}
+	// p = pcap_open_live(dev, 8000, 1, timeout, errbuf);
+	// if(!p){
+	// 	fprintf(stderr,"%s\n",errbuf);
+	// 	exit(1);
+	// }
+
+	if( pcap_set_timeout( p, timeout ) != 0 )
+	{
+		fprintf( stderr, "Unable to configure timeout.\n" );
+		exit(1);
+	}
+
+	if( pcap_set_immediate_mode( p, 1 ) != 0 )
+	{
+		fprintf( stderr, "Unable to configure immediate mode.\n" );
+		exit(1);
+	}
+
+	ret = pcap_set_immediate_mode(p, IMMEDIATE_MODE);
+	if(ret != 0){
+		fprintf( stderr, "Unable to configure immediate mode.\n" );
+		exit(1);
+	}
+
+	// Activate packet capture handle to look at packets on the network
+	int activateStatus = pcap_activate( p );
+	if( activateStatus < 0 )
+	{
+		pcap_perror( p, "Activate failed" );
 		exit(1);
 	}
 	
@@ -80,7 +110,7 @@ void my_pcap_init( const char* dst_ip, char* dev ,int timeout){
 	
 	//4. Compiles the filter expression into a format that pcap can read.
 	// puts(c_dst_ip);
-	puts(c_my_ip);
+	// puts(c_my_ip);
 	sprintf(filter_string, "icmp and dst host %s", c_my_ip);
 	puts(filter_string);
 	if(pcap_compile(p, &fcode, filter_string, 0, maskp) == -1){
@@ -104,26 +134,22 @@ const u_char* pcap_get_reply(char* c_dst_ip){
 	rtt = calculate_rtt(sent_time, received_time);
 
 	if(ret == 1) {
-		struct tm *ltime;
-		char timestr[16];
-		time_t local_tv_sec;
-
-		local_tv_sec = hdr->ts.tv_sec;
+		
 		printf("\tReply from : %s , time : %.5f ms\n", c_dst_ip, rtt);
 		
 		// printf("Length: %d bytes\n", hdr->len);
 		// printf("Capture length: %d bytes\n", hdr->caplen);
 
 		// print packet in hex dump
-		for(int i = 0 ; i < hdr->caplen ; i++) {
-			printf("%02x ", content[i]);
-			if ((i+1) % 16 == 0 && i != 0)
-				printf("\n");
-		}
-		printf("\n\n");
+		// for(int i = 0 ; i < hdr->caplen ; i++) {
+		// 	printf("%02x ", content[i]);
+		// 	if ((i+1) % 16 == 0 && i != 0)
+		// 		printf("\n");
+		// }
+		// printf("\n\n");
 	}
 	else if(ret == 0) {
-        printf("Timeout\n");
+        printf("Destination unreachable\n");
     }//end if timeout
     else if(ret == -1) {
         fprintf(stderr, "pcap_next_ex: %s\n", pcap_geterr(p));

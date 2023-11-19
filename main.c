@@ -22,6 +22,7 @@
 void check_format(int);
 void check_root();
 void usage();
+int get_net_num(char*);
 
 
 int main(int argc, char* argv[]){
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]){
 	int count = DEFAULT_SEND_COUNT;
 	int i;
 	int option;
-	c_dst_ip = "192.168.203.1";
+	int net_num;
 
 	check_root();
 
@@ -87,24 +88,21 @@ int main(int argc, char* argv[]){
 	// // printf("%d\n", my_ip.s_addr);
 	// // printf("%s\n", inet_ntoa(my_ip));
 	// // printf("%d\n", inet_addr(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr)));
+	// printf("192.168.203.1: %x\n", ntohl(inet_addr("192.168.203.1")));
+	// printf("192.168.203.2: %x\n", ntohl(inet_addr("192.168.203.2")));
+	// printf("255.255.255.0: %0x\n", inet_addr("255.255.255.0"));
+
 	c_my_ip = strdup(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 	// puts(c_my_ip);
 	// // puts(net);
 	// // puts(mask);
 
 	// Initialize Pcap ---------------------------------------------
-	my_pcap_init( c_dst_ip, p_dev , timeout);
-
+	my_pcap_init(p_dev , timeout);
+	net_num = get_net_num(mask);	// Get net number
+	// printf("net num: %d\n", net_num);
 	
-	// // Seting buffer-------------------------------------------
-	memset(buffer, 0, sizeof(buffer));
-	// print_buffer(buffer, PACKET_SIZE);
 	
-	dst_ip.s_addr = inet_addr(c_dst_ip);
-	fill_iphdr(packet, my_ip, dst_ip);
-	fill_icmphdr(packet);
-	// fill_icmpdata(packet);
-	print_buffer(buffer, PACKET_SIZE);
 	// /*
 	//  *   Use "sendto" to send packets, and use "pcap_get_reply"(in pcap.c) 
 	// 	 or use the standard socket like the one in the ARP homework
@@ -112,26 +110,39 @@ int main(int argc, char* argv[]){
 	//  *	 You should reset the timer every time before you send a packet.
 	//  */
 
-	sa.sin_family = AF_INET;
-    sa.sin_addr.s_addr = inet_addr(c_dst_ip);
+	for(int i = 1; i < net_num; i++){
+	// // Seting buffer-------------------------------------------
+		memset(buffer, 0, sizeof(buffer));
+		// print_buffer(buffer, PACKET_SIZE);
+		
+		
+		dst_ip.s_addr = htonl(ntohl(inet_addr(net)) + i);
+		c_dst_ip = inet_ntoa(dst_ip);
+		// printf("%x\n", dst_ip.s_addr);
+		fill_iphdr(packet, my_ip, dst_ip);
+		fill_icmphdr(packet);
+		print_buffer(buffer, PACKET_SIZE);
+		sa.sin_family = AF_INET;
+    	sa.sin_addr.s_addr = dst_ip.s_addr;
 
-	// // Record the time when the packet is sent
-    gettimeofday(&sent_time, NULL);
+		// // Send Packet
+		if(sendto(sockfd, packet, PACKET_SIZE, 0, (struct sockaddr *)&sa, sizeof(sa)) < 0)
+		{
+				perror("sendto");
+				exit(1);
+		}
+		// // Record the time when the packet is sent
+		gettimeofday(&sent_time, NULL);
 
-	// // Send Packet
-	 if(sendto(sockfd, packet, PACKET_SIZE, 0, (struct sockaddr *)&sa, sizeof(sa)) < 0)
-	{
-			perror("sendto");
+		printf("PING %s (data size = %d, id = %x, seq = %d, timeout = %d ms)\n", c_dst_ip, (int)sizeof(packet->data), packet->icmp_hdr.id, ntohs(packet->icmp_hdr.seq), timeout);
+
+		p_packet_reply = pcap_get_reply(c_dst_ip);
+		if(p_packet_reply == NULL){
+			perror("pcap_get_reply");
 			exit(1);
+		}
 	}
 
-	printf("PING %s (data size = %d, id = %x, seq = %d, timeout = %d ms)\n", c_dst_ip, (int)sizeof(packet->data), packet->icmp_hdr.id, ntohs(packet->icmp_hdr.seq), timeout);
-
-	p_packet_reply = pcap_get_reply(c_dst_ip);
-	if(p_packet_reply == NULL){
-		perror("pcap_get_reply");
-		exit(1);
-	}
 	
 
 	return 0;
@@ -155,4 +166,10 @@ void check_format(int argc){
 
 void usage(){
 	puts("sudo ./ipscanner –i [Network Interface Name] -t [timeout(ms)]");
+}
+
+int get_net_num(char* mask){
+	// puts(mask);
+	// printf("%06x\n", htonl(inet_addr(mask)));
+	return ~(0xffffffff & ntohl(inet_addr(mask)));
 }
