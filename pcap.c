@@ -1,29 +1,33 @@
-#include "pcap.h"
 #include <sys/types.h>
+#include <sys/time.h>
 #include <pcap/pcap.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+#include "pcap.h"
+#include "fill_packet.h"
 
 
-extern pid_t pid;
-extern u16 icmp_req;
 
-// 修改interface name
+// extern u16 icmp_req; 
+struct timeval sent_time = {}, received_time = {};
 
-char* net;
-char* mask;
+char* net = NULL;
+char* mask = NULL;
 
-static char filter_string[FILTER_STRING_SIZE] = "icmp";
+static char filter_string[FILTER_STRING_SIZE] = {0};
 
 static pcap_t *p;
-static struct pcap_pkthdr hdr;
+static struct pcap_pkthdr *hdr;
+static const u_char *content;
 
 /*
  * This function is almost completed.
  * But you still need to edit the filter string.
  */
-void my_pcap_init( const char* dst_ip, char* dev ,int timeout)
-{	
+void my_pcap_init( const char* dst_ip, char* dev ,int timeout){	
 	int ret;
 	char errbuf[PCAP_ERRBUF_SIZE];
 	
@@ -75,6 +79,10 @@ void my_pcap_init( const char* dst_ip, char* dev ,int timeout)
 	 */
 	
 	//4. Compiles the filter expression into a format that pcap can read.
+	// puts(c_dst_ip);
+	puts(c_my_ip);
+	sprintf(filter_string, "icmp and dst host %s", c_my_ip);
+	puts(filter_string);
 	if(pcap_compile(p, &fcode, filter_string, 0, maskp) == -1){
 		pcap_perror(p,"pcap_compile");
 		exit(1);
@@ -87,18 +95,56 @@ void my_pcap_init( const char* dst_ip, char* dev ,int timeout)
 }
 
 
-const u_char* pcap_get_reply( void )
-{
-	const u_char *ptr;
+const u_char* pcap_get_reply(char* c_dst_ip){
+	int ret = pcap_next_ex(p, &hdr, &content);
+	double rtt;
+	
+	// Record the time when the packet is received
+    gettimeofday(&received_time, NULL);
+	rtt = calculate_rtt(sent_time, received_time);
 
-	ptr = pcap_next(p, &hdr);
+	if(ret == 1) {
+		struct tm *ltime;
+		char timestr[16];
+		time_t local_tv_sec;
+
+		local_tv_sec = hdr->ts.tv_sec;
+		printf("\tReply from : %s , time : %.5f ms\n", c_dst_ip, rtt);
+		
+		// printf("Length: %d bytes\n", hdr->len);
+		// printf("Capture length: %d bytes\n", hdr->caplen);
+
+		// print packet in hex dump
+		for(int i = 0 ; i < hdr->caplen ; i++) {
+			printf("%02x ", content[i]);
+			if ((i+1) % 16 == 0 && i != 0)
+				printf("\n");
+		}
+		printf("\n\n");
+	}
+	else if(ret == 0) {
+        printf("Timeout\n");
+    }//end if timeout
+    else if(ret == -1) {
+        fprintf(stderr, "pcap_next_ex: %s\n", pcap_geterr(p));
+    }//end if fail
+    else if(ret == -2) {
+        printf("No more packet from file\n");
+    }//end if read no more packet
+
+	return content;
 	
-	/*
-	 * google "pcap_next" to get more information
-	 * and check the packet that ptr pointed to.
-	 */
-	
-	
-	
-	return ptr;
+}
+
+double calculate_rtt(struct timeval sent_time, struct timeval received_time) {
+    // 计算秒数差值，并将其转换为毫秒
+    long int seconds_difference = received_time.tv_sec - sent_time.tv_sec;
+    long int microseconds_difference = received_time.tv_usec - sent_time.tv_usec;
+
+    // 计算 RTT，将秒数差值和微秒差值合并为毫秒
+    long int rtt_microseconds = seconds_difference * 1000000 + microseconds_difference;
+    double rtt_milliseconds = (double)rtt_microseconds / 1000.0;
+
+    // 精确到小数点后五位
+    return rtt_milliseconds;
 }

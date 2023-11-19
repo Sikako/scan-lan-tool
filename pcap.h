@@ -3,6 +3,7 @@
 
 #include <netinet/if_ether.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <netinet/ip.h> 
@@ -13,8 +14,16 @@
 
 #define FILTER_STRING_SIZE 100
 
+extern char* net;
+extern char* mask;
+extern struct timeval sent_time, received_time; 
+
+// Init pcap
 void my_pcap_init( const char* dst_ip, char* dev, int timeout);
 
-const u_char* pcap_get_reply( void );
+// Receive Reply Packet and Print out 
+const u_char* pcap_get_reply(char* c_dst_ip);
 
+// Return Round-Trip Time
+double calculate_rtt(struct timeval sent_time, struct timeval received_time);
 #endif
