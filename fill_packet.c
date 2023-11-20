@@ -24,11 +24,12 @@ void  fill_iphdr (myicmp* packet, struct in_addr my_ip, struct in_addr dst_ip){
 }
 
 void fill_icmphdr (myicmp* packet){
+    static int seq = 1;
     struct myicmphdr* p = &packet->icmp_hdr;
 	p->type = ICMP_ECHO;
     p->code = 0;
     p->id = htons(pid);
-    p->seq = htons(1);
+    p->seq = htons(seq++);
     fill_icmpdata(packet);
     p->cksum = htons(fill_cksum((u16*)p, ICMP_PACKET_SIZE));
 }

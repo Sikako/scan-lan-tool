@@ -43,6 +43,7 @@ int main(int argc, char* argv[]){
 	int i;
 	int option;
 	int net_num;
+	pid = getpid();
 
 	check_root();
 
@@ -109,7 +110,7 @@ int main(int argc, char* argv[]){
  	//  *   to get the "ICMP echo response" packets 
 	//  *	 You should reset the timer every time before you send a packet.
 	//  */
-
+	
 	for(int i = 1; i < net_num; i++){
 	// // Seting buffer-------------------------------------------
 		memset(buffer, 0, sizeof(buffer));
@@ -121,7 +122,7 @@ int main(int argc, char* argv[]){
 		// printf("%x\n", dst_ip.s_addr);
 		fill_iphdr(packet, my_ip, dst_ip);
 		fill_icmphdr(packet);
-		print_buffer(buffer, PACKET_SIZE);
+		// print_buffer(buffer, PACKET_SIZE);
 		sa.sin_family = AF_INET;
     	sa.sin_addr.s_addr = dst_ip.s_addr;
 
@@ -134,13 +135,9 @@ int main(int argc, char* argv[]){
 		// // Record the time when the packet is sent
 		gettimeofday(&sent_time, NULL);
 
-		printf("PING %s (data size = %d, id = %x, seq = %d, timeout = %d ms)\n", c_dst_ip, (int)sizeof(packet->data), packet->icmp_hdr.id, ntohs(packet->icmp_hdr.seq), timeout);
+		printf("PING %s (data size = %d, id = 0x%04x, seq = %d, timeout = %d ms)\n", c_dst_ip, (int)sizeof(packet->data), packet->icmp_hdr.id, ntohs(packet->icmp_hdr.seq), timeout);
 
-		p_packet_reply = pcap_get_reply(c_dst_ip);
-		if(p_packet_reply == NULL){
-			perror("pcap_get_reply");
-			exit(1);
-		}
+	        pcap_get_reply(c_dst_ip);
 	}
 
 	
@@ -150,8 +147,9 @@ int main(int argc, char* argv[]){
 
 
 void check_root(){
-	pid = geteuid();
-	if (pid != 0){
+	int uid;
+	uid = geteuid();
+	if (uid != 0){
 		printf("ERROR: You must be root to use this tool!\n");
 		exit(1);
 	}

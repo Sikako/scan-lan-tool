@@ -4,6 +4,8 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <time.h>
 #include "pcap.h"
@@ -84,17 +86,18 @@ void my_pcap_init(char* dev ,int timeout){
 		exit(1);
 	}
 
-	if( pcap_set_immediate_mode( p, 1 ) != 0 )
-	{
-		fprintf( stderr, "Unable to configure immediate mode.\n" );
-		exit(1);
-	}
 
-	ret = pcap_set_immediate_mode(p, IMMEDIATE_MODE);
+	ret = pcap_set_immediate_mode(p,IMMEDIATE_MODE);
 	if(ret != 0){
 		fprintf( stderr, "Unable to configure immediate mode.\n" );
 		exit(1);
 	}
+	
+	//ret = pcap_setnonblock(p, 5, errbuf);
+	//if(ret != 0){
+	//	fprintf( stderr, "Unable to configure nonblock mode.\n" );
+	//	exit(1);
+	//}
 
 	// Activate packet capture handle to look at packets on the network
 	int activateStatus = pcap_activate( p );
@@ -125,17 +128,17 @@ void my_pcap_init(char* dev ,int timeout){
 }
 
 
-const u_char* pcap_get_reply(char* c_dst_ip){
-	int ret = pcap_next_ex(p, &hdr, &content);
-	double rtt;
+void pcap_get_reply(char* c_dst_ip){
+
+    int ret = pcap_next_ex(p, &hdr, &content);
+    double rtt;
 	
 	// Record the time when the packet is received
     gettimeofday(&received_time, NULL);
-	rtt = calculate_rtt(sent_time, received_time);
+    rtt = calculate_rtt(sent_time, received_time);
 
-	if(ret == 1) {
-		
-		printf("\tReply from : %s , time : %.5f ms\n", c_dst_ip, rtt);
+    if(ret == 1) {
+        printf("\tReply from : %s , time : %.5f ms\n", c_dst_ip, rtt);
 		
 		// printf("Length: %d bytes\n", hdr->len);
 		// printf("Capture length: %d bytes\n", hdr->caplen);
@@ -147,9 +150,9 @@ const u_char* pcap_get_reply(char* c_dst_ip){
 		// 		printf("\n");
 		// }
 		// printf("\n\n");
-	}
-	else if(ret == 0) {
-        printf("Destination unreachable\n");
+    }
+    else if(ret == 0) {
+        printf("\tDestination unreachable\n");
     }//end if timeout
     else if(ret == -1) {
         fprintf(stderr, "pcap_next_ex: %s\n", pcap_geterr(p));
@@ -157,9 +160,6 @@ const u_char* pcap_get_reply(char* c_dst_ip){
     else if(ret == -2) {
         printf("No more packet from file\n");
     }//end if read no more packet
-
-	return content;
-	
 }
 
 double calculate_rtt(struct timeval sent_time, struct timeval received_time) {

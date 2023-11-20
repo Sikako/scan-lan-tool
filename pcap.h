@@ -13,7 +13,7 @@
 #include "fill_packet.h"
 
 #define FILTER_STRING_SIZE 100
-#define IMMEDIATE_MODE 0
+#define IMMEDIATE_MODE 1
 
 extern char* net;
 extern char* mask;
@@ -23,7 +23,7 @@ extern struct timeval sent_time, received_time;
 void my_pcap_init(char* dev, int timeout);
 
 // Receive Reply Packet and Print out 
-const u_char* pcap_get_reply(char* c_dst_ip);
+void pcap_get_reply(char* c_dst_ip);
 
 // Return Round-Trip Time
 double calculate_rtt(struct timeval sent_time, struct timeval received_time);
